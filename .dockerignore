@@ -1,0 +1,41 @@
+# Git e IDE
+.git
+.gitignore
+.gitattributes
+.vs
+.vscode
+.idea
+*.user
+*.suo
+*.sln.docstates
+
+# Build .NET
+**/bin
+**/obj
+**/out
+**/publish
+**/TestResults
+**/*.trx
+**/*.coverage
+**/*.coveragexml
+
+# Testes (não entram nas imagens de runtime)
+tests/
+
+# Documentação e exemplos locais
+docs/
+*.md
+!src/**/*.md
+
+# Compose e ambiente local
+docker-compose*.yml
+docker-compose*.yaml
+.env
+.env.*
+!.env.example
+
+# Ferramentas e caches
+**/.dockerignore
+**/node_modules
+**/.DS_Store
+Thumbs.db

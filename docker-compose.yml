@@ -1,0 +1,124 @@
+# EventStreaming.Analytics.Kafka — ambiente local
+# Uso: docker compose up --build
+#
+# Serviços expostos:
+#   Tracking API  → http://localhost:5001
+#   Query API     → http://localhost:5002
+#   PostgreSQL    → localhost:5432 (analytics / analytics)
+#   Kafka         → localhost:9092
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.1
+    depends_on:
+      - kafka
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Waiting for Kafka..."
+        cub kafka-ready -b kafka:29092 1 60
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic user-activity-events --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic order-events --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic analytics-dead-letter --partitions 1 --replication-factor 1
+        echo "Topics ready."
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: analytics
+      POSTGRES_PASSWORD: analytics
+      POSTGRES_DB: analytics
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analytics -d analytics"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  tracking-api:
+    build:
+      context: .
+      dockerfile: src/Services/Tracking/Tracking.Api/Dockerfile
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5001:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Kafka__BootstrapServers: kafka:29092
+      Kafka__ClientId: tracking-api
+      Kafka__MaxRetryAttempts: "3"
+      ConnectionStrings__TrackingDb: Host=postgres;Port=5432;Database=analytics;Username=analytics;Password=analytics
+
+  analytics-consumer:
+    build:
+      context: .
+      dockerfile: src/Services/Analytics/Analytics.Consumer/Dockerfile
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      tracking-api:
+        condition: service_started
+    environment:
+      Kafka__BootstrapServers: kafka:29092
+      Kafka__ClientId: analytics-consumer
+      Kafka__ConsumerGroupId: analytics-consumer-group
+      Kafka__MaxRetryAttempts: "3"
+      ConnectionStrings__AnalyticsDb: Host=postgres;Port=5432;Database=analytics;Username=analytics;Password=analytics
+
+  query-api:
+    build:
+      context: .
+      dockerfile: src/Services/Query/Analytics.QueryApi/Dockerfile
+    depends_on:
+      kafka:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      analytics-consumer:
+        condition: service_started
+    ports:
+      - "5002:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__AnalyticsDb: Host=postgres;Port=5432;Database=analytics;Username=analytics;Password=analytics
+      Kafka__BootstrapServers: kafka:29092
+
+volumes:
+  postgres_data:

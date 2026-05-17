@@ -1,0 +1,33 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/BuildingBlocks.Contracts/BuildingBlocks.Contracts.csproj" />
+    <Project Path="src/BuildingBlocks/BuildingBlocks.Domain/BuildingBlocks.Domain.csproj" />
+    <Project Path="src/BuildingBlocks/BuildingBlocks.Kafka/BuildingBlocks.Kafka.csproj" />
+    <Project Path="src/BuildingBlocks/BuildingBlocks.Observability/BuildingBlocks.Observability.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/Analytics/">
+    <Project Path="src/Services/Analytics/Analytics.Application/Analytics.Application.csproj" />
+    <Project Path="src/Services/Analytics/Analytics.Consumer/Analytics.Consumer.csproj" />
+    <Project Path="src/Services/Analytics/Analytics.Domain/Analytics.Domain.csproj" />
+    <Project Path="src/Services/Analytics/Analytics.Infrastructure/Analytics.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Query/">
+    <Project Path="src/Services/Query/Analytics.QueryApi/Analytics.QueryApi.csproj" />
+    <Project Path="src/Services/Query/Analytics.QueryApplication/Analytics.QueryApplication.csproj" />
+    <Project Path="src/Services/Query/Analytics.QueryInfrastructure/Analytics.QueryInfrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Tracking/">
+    <Project Path="src/Services/Tracking/Tracking.Api/Tracking.Api.csproj" />
+    <Project Path="src/Services/Tracking/Tracking.Application/Tracking.Application.csproj" />
+    <Project Path="src/Services/Tracking/Tracking.Infrastructure/Tracking.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Analytics.IntegrationTests/Analytics.IntegrationTests.csproj" />
+    <Project Path="tests/Analytics.UnitTests/Analytics.UnitTests.csproj" />
+    <Project Path="tests/Query.IntegrationTests/Query.IntegrationTests.csproj" />
+    <Project Path="tests/Tracking.IntegrationTests/Tracking.IntegrationTests.csproj" />
+    <Project Path="tests/Tracking.UnitTests/Tracking.UnitTests.csproj" />
+  </Folder>
+</Solution>
