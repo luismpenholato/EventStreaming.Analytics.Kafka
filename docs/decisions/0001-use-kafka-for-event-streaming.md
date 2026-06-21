@@ -1,20 +1,20 @@
-# ADR 0001: Usar Kafka para event streaming
+# ADR 0001: Use Kafka for event streaming
 
 ## Status
 
-Aceito
+Accepted
 
-## Contexto
+## Context
 
-Precisamos demonstrar arquitetura de alto volume com processamento assíncrono, múltiplos consumidores e possibilidade de replay para analytics.
+We need to demonstrate high-volume architecture with asynchronous processing, multiple consumers, and replay capability for analytics.
 
-## Decisão
+## Decision
 
-Adotar Apache Kafka via `Confluent.Kafka` como backbone de eventos.
+Adopt Apache Kafka via `Confluent.Kafka` as the event backbone.
 
-## Consequências
+## Consequences
 
-- Logs imutáveis permitem reprocessamento de métricas.
-- Consumer groups escalam processamento horizontalmente.
-- Operação local via Docker Compose com Zookeeper + Kafka.
-- Curva de aprendizado maior que uma fila AMQP simples.
+- Immutable logs enable metric reprocessing.
+- Consumer groups scale processing horizontally.
+- Local operation via Docker Compose with Zookeeper + Kafka.
+- Steeper learning curve than a simple AMQP queue.

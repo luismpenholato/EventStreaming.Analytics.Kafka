@@ -2,30 +2,59 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
+using Testcontainers.PostgreSql;
 using Tracking.Application.Abstractions;
 
 namespace Tracking.IntegrationTests;
 
-public sealed class EventsEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class EventsEndpointTests : IAsyncLifetime
 {
-    private readonly HttpClient _client;
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
+        .WithImage("postgres:16-alpine")
+        .WithDatabase("analytics")
+        .WithUsername("analytics")
+        .WithPassword("analytics")
+        .Build();
 
-    public EventsEndpointTests(WebApplicationFactory<Program> factory)
+    private WebApplicationFactory<Program> _factory = null!;
+    private HttpClient _client = null!;
+
+    public async Task InitializeAsync()
     {
-        _client = factory.WithWebHostBuilder(builder =>
+        await _postgres.StartAsync();
+
+        _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
+            builder.ConfigureAppConfiguration((_, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ConnectionStrings:TrackingDb"] = _postgres.GetConnectionString(),
+                    ["Kafka:BootstrapServers"] = "localhost:9092"
+                });
+            });
+
             builder.ConfigureServices(services =>
             {
                 var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IOutboxWriter));
                 if (descriptor is not null)
                     services.Remove(descriptor);
 
-                var outbox = Substitute.For<IOutboxWriter>();
-                services.AddSingleton(outbox);
+                services.AddSingleton(Substitute.For<IOutboxWriter>());
             });
-        }).CreateClient();
+        });
+
+        _client = _factory.CreateClient();
+    }
+
+    public async Task DisposeAsync()
+    {
+        _client.Dispose();
+        await _factory.DisposeAsync();
+        await _postgres.DisposeAsync();
     }
 
     [Fact]

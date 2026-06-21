@@ -1,21 +1,21 @@
-# ADR 0003: Separar ingestão (command) da Query API
+# ADR 0003: Separate ingestion from Query API
 
 ## Status
 
-Aceito
+Accepted
 
-## Contexto
+## Context
 
-Misturar ingestão de eventos e consulta de métricas na mesma API acopla latências e dificulta escalar leitura e escrita independentemente.
+Combining event ingestion and metrics querying in the same API couples latencies and makes it harder to scale reads and writes independently.
 
-## Decisão
+## Decision
 
-- `Tracking.Api` — apenas publicação no Kafka.
-- `Analytics.Consumer` — processamento e persistência.
-- `Analytics.QueryApi` — apenas leitura do PostgreSQL.
+- `Tracking.Api` — write-facing HTTP ingestion only (Outbox persistence).
+- `Analytics.Consumer` — stream processing and metric persistence.
+- `Analytics.QueryApi` — read-only access to PostgreSQL.
 
-## Consequências
+## Consequences
 
-- Modelo eventual consistency entre POST do evento e GET da métrica.
-- Deploy e scaling independentes.
-- Clareza pedagógica para portfólio (CQRS light).
+- Eventual consistency between POST and subsequent GET of metrics.
+- Independent deployment and scaling paths.
+- Clear pedagogical separation (light CQRS).

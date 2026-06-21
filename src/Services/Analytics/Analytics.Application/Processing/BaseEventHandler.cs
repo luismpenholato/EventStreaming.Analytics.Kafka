@@ -7,6 +7,8 @@ namespace Analytics.Application.Processing;
 public abstract class BaseEventHandler<TEvent>(IMetricsRepository metrics, ILogger logger) : IEventHandler<TEvent>
     where TEvent : IntegrationEvent
 {
+    protected IMetricsRepository Metrics { get; } = metrics;
+
     public async Task HandleAsync(TEvent @event, CancellationToken cancellationToken = default)
     {
         using (logger.BeginScope(new Dictionary<string, object>
@@ -16,7 +18,7 @@ public abstract class BaseEventHandler<TEvent>(IMetricsRepository metrics, ILogg
             ["CorrelationId"] = @event.CorrelationId
         }))
         {
-            var processed = await metrics.ProcessIdempotentlyAsync(
+            var processed = await Metrics.ProcessIdempotentlyAsync(
                 @event.EventId,
                 @event.EventType,
                 @event.OccurredAt,

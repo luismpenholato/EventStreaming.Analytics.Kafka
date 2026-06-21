@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace Analytics.Application.Handlers;
 
 /// <summary>
-/// Métricas de tipo/período são atualizadas em ProcessIdempotentlyAsync.
+/// Event-type and period metrics are updated in ProcessIdempotentlyAsync.
 /// </summary>
 public sealed class CheckoutStartedHandler(IMetricsRepository metrics, ILogger<CheckoutStartedHandler> logger)
     : BaseEventHandler<CheckoutStartedEvent>(metrics, logger)

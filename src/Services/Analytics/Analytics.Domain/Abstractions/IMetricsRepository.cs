@@ -3,8 +3,8 @@ namespace Analytics.Domain.Abstractions;
 public interface IMetricsRepository
 {
     /// <summary>
-    /// Executa o processamento dentro de uma transação.
-    /// Retorna false quando o EventId já foi processado (idempotência).
+    /// Runs processing inside a transaction.
+    /// Returns false when the EventId was already processed (idempotency).
     /// </summary>
     Task<bool> ProcessIdempotentlyAsync(
         Guid eventId,

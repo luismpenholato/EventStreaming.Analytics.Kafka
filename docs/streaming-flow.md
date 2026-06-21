@@ -1,61 +1,61 @@
-# Fluxo de streaming
+# Streaming flow
 
-## 1. Ingestão (Tracking API + Outbox)
+## 1. Ingestion (Tracking API + Outbox)
 
-1. Cliente envia `POST /api/events/{tipo}` com DTO validado (FluentValidation).
-2. Application mapeia DTO → `IntegrationEvent` (contrato compartilhado).
-3. `IOutboxWriter` persiste em `outbox_messages` (PostgreSQL).
-4. API responde **202 Accepted** com `eventId` e `correlationId`.
+1. Client sends `POST /api/events/{type}` with a validated DTO (FluentValidation).
+2. Application maps DTO → `IntegrationEvent` (shared contract).
+3. `IOutboxWriter` persists to `outbox_messages` (PostgreSQL).
+4. API returns **202 Accepted** with `eventId` and `correlationId`.
 
-> **Importante:** 202 significa evento **persistido no Outbox**, não publicado no Kafka ainda.
+> **Important:** `202` means the event is **stored in the Outbox**, not yet published to Kafka.
 
-5. `OutboxPublisherWorker` chama `IOutboxPublisher` em background.
-6. Mensagens publicadas no tópico correto via `IIntegrationEventPublisher`.
+5. `OutboxPublisherWorker` invokes `IOutboxPublisher` in the background.
+6. Messages are published to the correct topic via `IIntegrationEventPublisher`.
 
-A API **não** grava métricas — apenas enfileira para o stream.
+The API does **not** write metrics — it only enqueues for the stream.
 
 ## 2. Stream (Kafka)
 
-- Eventos ficam no log até expirarem (retenção configurável no broker).
-- Offsets gerenciados por partition + consumer group.
-- Commit manual após processamento bem-sucedido.
+- Events remain in the log until retention expires (broker-configurable).
+- Offsets are managed per partition and consumer group.
+- Manual commit after successful processing.
 
-## 3. Processamento (Analytics Consumer)
+## 3. Processing (Analytics Consumer)
 
-1. `AnalyticsKafkaConsumer` faz poll em `user-activity-events` e `order-events`.
-2. `IntegrationEventRegistry` deserializa JSON → `IntegrationEvent`.
-3. `EventDispatcher` + `EventHandlerInvoker` roteiam para `IEventHandler<T>`.
-4. `ProcessIdempotentlyAsync`: transação com insert em `processed_events` + métricas.
-5. Retry com backoff; falha definitiva → `analytics-dead-letter`.
+1. `AnalyticsKafkaConsumer` polls `user-activity-events` and `order-events`.
+2. `IntegrationEventRegistry` deserializes JSON → `IntegrationEvent`.
+3. `EventDispatcher` + `EventHandlerInvoker` route to `IEventHandler<T>`.
+4. `ProcessIdempotentlyAsync`: single transaction with insert into `processed_events` + metric updates.
+5. Retry with backoff; final failure → `analytics-dead-letter`.
 
-## 4. Consulta (Query API)
+## 4. Query (Query API)
 
-1. Cliente chama `GET /api/analytics/*`.
-2. `DapperAnalyticsQueries` lê tabelas materializadas (somente leitura).
-3. Sem acesso ao Kafka — latência previsível.
+1. Client calls `GET /api/analytics/*`.
+2. `DapperAnalyticsQueries` reads materialized tables (read-only).
+3. No Kafka access — predictable read latency.
 
-## Ambiente Docker
+## Docker environment
 
 ```bash
 docker compose up --build
 ```
 
-| Serviço | Porta |
-|---------|-------|
+| Service | Port |
+|---------|------|
 | Tracking API | 5001 |
 | Query API | 5002 |
 
-Exemplos HTTP: [requests/event-streaming.http](requests/event-streaming.http)
+HTTP samples: [requests/event-streaming.http](requests/event-streaming.http)
 
-## Métricas materializadas
+## Materialized metrics
 
-| Métrica | Origem dos eventos |
-|---------|-------------------|
-| Visualizações por produto | ProductViewed |
-| Adições ao carrinho | ProductAddedToCart |
-| Checkouts iniciados | CheckoutStarted |
-| Pedidos concluídos | OrderCompleted |
-| Logins | UserLoggedIn |
-| Taxa de conversão | views → orders (simplificada) |
-| Eventos por tipo | contador global por EventType |
-| Eventos por período | bucket horário (OccurredAt) |
+| Metric | Source events |
+|--------|---------------|
+| Product views | `ProductViewed` |
+| Cart additions | `ProductAddedToCart` |
+| Checkouts started | `CheckoutStarted` |
+| Orders completed | `OrderCompleted` |
+| Logins | `UserLoggedIn` |
+| Conversion rate | views → orders (simplified) |
+| Events by type | global counter per `EventType` |
+| Events by period | hourly bucket (`OccurredAt`) |

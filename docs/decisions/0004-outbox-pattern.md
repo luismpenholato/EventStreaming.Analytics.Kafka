@@ -1,55 +1,55 @@
-# ADR 0004: Outbox Pattern na Tracking API
+# ADR 0004: Outbox Pattern in Tracking API
 
 ## Status
 
-Aceito
+Accepted
 
-## Problema resolvido
+## Problem addressed
 
-Publicar diretamente no Kafka dentro do request HTTP cria risco de inconsistência:
+Publishing directly to Kafka inside the HTTP request creates consistency risks:
 
-- A API pode retornar sucesso e a publicação no broker falhar em seguida.
-- Em cenários com transações de banco, não há garantia atômica entre persistência local e envio ao Kafka.
-- Falhas transitórias de rede para o broker perdem o evento sem rastro recuperável no lado da API.
+- The API may return success and the broker publish may fail afterward.
+- Without a local transaction, there is no atomic guarantee between persistence and Kafka send.
+- Transient network failures to the broker can lose events without a recoverable trace on the API side.
 
-Para um portfólio que simula produção, precisamos de **durabilidade na ingestão** desacoplada da latência do broker.
+For a production-like portfolio, we need **durable ingestion** decoupled from broker latency.
 
-## Alternativas consideradas
+## Alternatives considered
 
-| Alternativa | Por que não foi escolhida |
-|-------------|---------------------------|
-| Publish direto no Kafka no POST | Sem garantia entre HTTP 202 e mensagem no tópico |
-| Transactional Outbox + Debezium CDC | Excelente em escala, mas aumenta operação (connect, tópicos internos) para o escopo do portfólio |
-| MassTransit / abstração de bus | Restrição do projeto: demonstrar Kafka nativo e Confluent.Kafka |
-| Saga / process manager | Overengineering para ingestão fire-and-forget |
+| Alternative | Why not chosen |
+|-------------|----------------|
+| Direct Kafka publish on POST | No guarantee between HTTP 202 and message on topic |
+| Transactional Outbox + Debezium CDC | Excellent at scale, but adds operational complexity (Connect, internal topics) for this demo |
+| MassTransit / bus abstraction | Project goal: demonstrate native Kafka and `Confluent.Kafka` |
+| Saga / process manager | Overengineering for fire-and-forget ingestion |
 
-## Decisão tomada
+## Decision
 
-1. `POST /api/events/*` valida o DTO e persiste em `outbox_messages` via `IOutboxWriter`.
-2. A API responde **202 Accepted** com `eventId` e `correlationId` após commit no PostgreSQL.
-3. `OutboxPublisherWorker` delega para `IOutboxPublisher`, que publica lotes pendentes no Kafka.
-4. Campos de controle: `created_at`, `processed_at`, `retry_count`, `last_error`.
-5. Índice único em `event_id` evita duplicar a mesma mensagem de outbox.
+1. `POST /api/events/*` validates the DTO and persists to `outbox_messages` via `IOutboxWriter`.
+2. The API returns **202 Accepted** with `eventId` and `correlationId` after PostgreSQL commit.
+3. `OutboxPublisherWorker` delegates to `IOutboxPublisher`, which publishes pending batches to Kafka.
+4. Control fields: `created_at`, `processed_at`, `retry_count`, `last_error`.
+5. Unique index on `event_id` prevents duplicate outbox rows for the same event.
 
-## Consequências positivas
+## Positive consequences
 
-- Ingestão **durável** mesmo se Kafka estiver indisponível temporariamente.
-- Reprocessamento e observabilidade via tabela de outbox.
-- Separação clara: HTTP não conhece detalhes do producer Kafka.
-- Alinhado a padrões vistos em sistemas event-driven em produção.
+- **Durable** ingestion even when Kafka is temporarily unavailable.
+- Reprocessing and observability via the outbox table.
+- HTTP layer does not depend on Kafka producer details.
+- Aligns with patterns used in production event-driven systems.
 
 ## Trade-offs
 
-| Trade-off | Impacto |
-|-----------|---------|
-| Latência eventual até o Kafka | Métricas na Query API não refletem o POST imediatamente |
-| 202 ≠ mensagem no tópico | Quem consome a API precisa entender o Outbox |
-| Polling do worker (2s) | Não é real-time; aceitável para analytics |
-| Mesmo PostgreSQL do analytics | Simplicidade operacional; não é isolamento total de bounded contexts |
-| Worker + publisher no mesmo processo da API | Em produção grande, o relay poderia ser serviço dedicado |
+| Trade-off | Impact |
+|-----------|--------|
+| Eventual latency to Kafka | Query API metrics do not reflect POST immediately |
+| 202 ≠ message on topic | API consumers must understand Outbox semantics |
+| Worker polling (~2s) | Not real-time; acceptable for analytics |
+| Shared PostgreSQL with analytics | Operational simplicity; not full bounded-context isolation |
+| Worker hosted in Tracking API process | In larger production systems, relay could be a dedicated service |
 
-## Referências no código
+## Code references
 
 - `Tracking.Application` → `IOutboxWriter`
 - `Tracking.Infrastructure` → `OutboxWriter`, `OutboxPublisher`, `OutboxPublisherWorker`
-- Migration `AddOutbox` → tabela `outbox_messages`
+- Migration `AddOutbox` → `outbox_messages` table

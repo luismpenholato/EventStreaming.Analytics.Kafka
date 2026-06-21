@@ -1,52 +1,54 @@
-# Tópicos Kafka
+# Kafka topics
 
 ## `user-activity-events`
 
-Eventos de navegação e comportamento do usuário.
+User navigation and behavior events.
 
-| EventType | Descrição | Key sugerida |
-|-----------|-----------|--------------|
-| `ProductViewed` | Visualização de produto | `EventId` |
-| `ProductAddedToCart` | Item adicionado ao carrinho | `EventId` |
-| `CheckoutStarted` | Início do checkout | `EventId` |
-| `UserLoggedIn` | Login do usuário | `EventId` |
+| EventType | Description | Suggested key |
+|-----------|-------------|---------------|
+| `ProductViewed` | Product page view | `EventId` |
+| `ProductAddedToCart` | Item added to cart | `EventId` |
+| `CheckoutStarted` | Checkout started | `EventId` |
+| `UserLoggedIn` | User login | `EventId` |
 
-- **Partições**: 3 (permite paralelismo no consumer group)
-- **Replicação**: 1 (ambiente local/Docker)
-- **Serialização**: JSON (camelCase)
+- **Partitions**: 3 (enables consumer group parallelism)
+- **Replication**: 1 (local / Docker demo)
+- **Serialization**: JSON (camelCase)
 - **Headers**: `event-type`, `correlation-id`
 
 ## `order-events`
 
-Eventos do domínio de pedidos.
+Order domain events.
 
-| EventType | Descrição |
-|-----------|-----------|
-| `OrderCompleted` | Pedido finalizado com sucesso |
+| EventType | Description |
+|-----------|-------------|
+| `OrderCompleted` | Order successfully completed |
 
-- **Partições**: 3
-- Separação semântica: pedidos podem ter SLAs e consumidores diferentes no futuro.
+- **Partitions**: 3
+- Semantic separation: orders may have different SLAs and consumers in the future.
 
 ## `analytics-dead-letter`
 
-Mensagens que falharam após retries no consumer.
+Messages that failed after consumer retries.
 
-Payload inclui: tópico original, tipo do evento, payload bruto, erro e timestamp.
+Payload includes: original topic, event type, raw payload, error, and timestamp.
 
-- **Partições**: 1 (inspeção manual / ferramentas de replay)
-- Não faz parte do fluxo feliz; usado para observabilidade e correção.
+- **Partitions**: 1 (manual inspection / replay tooling)
+- Not part of the happy path; used for observability and remediation.
 
-## Mapeamento evento → tópico
+## Event → topic mapping
 
-| Evento | Tópico |
-|--------|--------|
+| Event | Topic |
+|-------|-------|
 | ProductViewed | user-activity-events |
 | ProductAddedToCart | user-activity-events |
 | CheckoutStarted | user-activity-events |
 | UserLoggedIn | user-activity-events |
 | OrderCompleted | order-events |
 
+Topic names are centralized in `BuildingBlocks.Contracts.Topics.KafkaTopics`.
+
 ## Consumer group
 
 - **Group ID**: `analytics-consumer-group`
-- **Instâncias**: escalar `analytics-consumer` no Compose aumenta consumidores no mesmo group (partições limitam paralelismo máximo).
+- **Scaling**: increasing `analytics-consumer` replicas in Compose adds consumers to the same group (partition count caps max parallelism).

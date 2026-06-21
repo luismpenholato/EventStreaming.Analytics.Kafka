@@ -82,6 +82,9 @@ dotnet_analyzer_diagnostic.category-Design.severity = warning
 dotnet_analyzer_diagnostic.category-Performance.severity = suggestion
 
 # Arquivos gerados
+[src/BuildingBlocks/BuildingBlocks.Domain/Results/Result.cs]
+dotnet_diagnostic.CA1000.severity = none
+
 [**/Migrations/*.cs]
 generated_code = true
 dotnet_diagnostic.IDE0005.severity = none

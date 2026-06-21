@@ -1,17 +1,17 @@
-# Arquitetura — EventStreaming.Analytics.Kafka
+# Architecture — EventStreaming.Analytics.Kafka
 
-## Visão geral
+## Overview
 
-Plataforma de analytics baseada em **event streaming** que simula rastreamento de comportamento do usuário em um e-commerce. O sistema separa três responsabilidades com decisões próximas de produção:
+Event streaming analytics platform that simulates user-behavior tracking in an e-commerce scenario. The system separates ingestion, relay, processing, and querying with production-like patterns:
 
-| Camada | Serviço | Responsabilidade |
-|--------|---------|------------------|
-| Ingestão | `Tracking.Api` | Receber eventos HTTP, validar, persistir no **Outbox** |
-| Relay | `OutboxPublisherWorker` | Publicar outbox pendente no Kafka (`IOutboxPublisher`) |
-| Processamento | `Analytics.Consumer` | Consumir stream, agregar métricas, idempotência |
-| Consulta | `Analytics.QueryApi` | Expor métricas via **Dapper** (somente leitura) |
+| Layer | Service | Responsibility |
+|-------|---------|----------------|
+| Ingestion | `Tracking.Api` | Receive HTTP events, validate, persist to **Outbox** |
+| Relay | `OutboxPublisherWorker` | Publish pending outbox rows to Kafka via `IOutboxPublisher` |
+| Processing | `Analytics.Consumer` | Consume stream, aggregate metrics, transactional idempotency |
+| Query | `Analytics.QueryApi` | Expose metrics via **Dapper** (read-only) |
 
-## Fluxo com Outbox
+## Outbox flow
 
 ```mermaid
 sequenceDiagram
@@ -25,17 +25,17 @@ sequenceDiagram
     participant QueryAPI as Query API
 
     Client->>TrackingAPI: POST /api/events/*
-    TrackingAPI->>Outbox: INSERT (transação)
+    TrackingAPI->>Outbox: INSERT (transaction)
     TrackingAPI-->>Client: 202 Accepted (eventId, correlationId)
 
-    loop a cada ~2s
+    loop every ~2s
         Worker->>Outbox: SELECT pending
         Worker->>Kafka: publish
         Worker->>Outbox: UPDATE processed_at
     end
 
     Kafka->>Consumer: poll
-    Consumer->>DB: transação (processed_events + métricas)
+    Consumer->>DB: transaction (processed_events + metrics)
     Consumer->>Kafka: commit offset
 
     Client->>QueryAPI: GET /api/analytics/*
@@ -43,48 +43,48 @@ sequenceDiagram
     QueryAPI-->>Client: 200 JSON
 ```
 
-## Idempotência do consumer
+## Consumer idempotency
 
 ```mermaid
 flowchart TD
-    A[Mensagem Kafka] --> B[EventDispatcher]
+    A[Kafka message] --> B[EventDispatcher]
     B --> C[ProcessIdempotentlyAsync]
     C --> D{INSERT processed_events}
-    D -->|unique violation| E[Skip - duplicata]
-    D -->|sucesso| F[Atualizar métricas]
-    F --> G[COMMIT transação]
-    G --> H[Commit offset Kafka]
-    C -->|erro após retries| I[analytics-dead-letter]
+    D -->|unique violation| E[Skip duplicate]
+    D -->|success| F[Update metrics]
+    F --> G[COMMIT transaction]
+    G --> H[Commit Kafka offset]
+    C -->|error after retries| I[analytics-dead-letter]
 ```
 
 ## Bounded contexts
 
-- **Tracking**: validação, outbox, publicação assíncrona.
-- **Analytics**: processamento, agregação, `processed_events`.
-- **Query**: leitura SQL via Dapper, sem dependência de write stack.
+- **Tracking**: validation, outbox, async publication.
+- **Analytics**: stream processing, aggregation, `processed_events` ledger.
+- **Query**: SQL reads via Dapper, no dependency on the write stack.
 
 ## Building blocks
 
-| Projeto | Conteúdo |
+| Project | Contents |
 |---------|----------|
-| `BuildingBlocks.Contracts` | Eventos, `IIntegrationEventPublisher`, `IntegrationEventRegistry` |
+| `BuildingBlocks.Contracts` | Events, `IIntegrationEventPublisher`, `IntegrationEventRegistry` |
 | `BuildingBlocks.Kafka` | Producer, consumer base, retry, DLQ |
 | `BuildingBlocks.Domain` | `Result<T>` |
 | `BuildingBlocks.Observability` | Serilog, `CorrelationIdMiddleware` |
 
-## Execução local
+## Local execution
 
 ```bash
 docker compose up --build
 ```
 
-| Serviço | URL |
+| Service | URL |
 |---------|-----|
 | Tracking API | http://localhost:5001 |
 | Query API | http://localhost:5002 |
 
-Requisições de exemplo: [requests/event-streaming.http](requests/event-streaming.http)
+Sample requests: [requests/event-streaming.http](requests/event-streaming.http)
 
-## Decisões
+## Decisions
 
-Ver [decisions/](decisions/) para ADRs numerados.
+See [decisions/](decisions/) for numbered ADRs.

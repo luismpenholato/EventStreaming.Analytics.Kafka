@@ -1,19 +1,19 @@
-# ADR 0002: Usar consumer groups
+# ADR 0002: Use consumer groups
 
 ## Status
 
-Aceito
+Accepted
 
-## Contexto
+## Context
 
-Múltiplas instâncias do `Analytics.Consumer` devem dividir partições sem processar o mesmo evento duas vezes no mesmo group.
+Multiple `Analytics.Consumer` instances must share partitions without processing the same event twice within the same group.
 
-## Decisão
+## Decision
 
-Usar `analytics-consumer-group` com commit manual após processamento e idempotência por `EventId`.
+Use `analytics-consumer-group` with manual offset commit after processing and application-level idempotency by `EventId`.
 
-## Consequências
+## Consequences
 
-- Paralelismo limitado ao número de partições (3 por tópico).
-- Rebalanceamento ao subir/descer instâncias.
-- Idempotência na aplicação continua necessária (at-least-once delivery).
+- Parallelism is limited by partition count (3 per topic in the demo).
+- Rebalancing occurs when instances join or leave the group.
+- Application idempotency remains required (at-least-once delivery).

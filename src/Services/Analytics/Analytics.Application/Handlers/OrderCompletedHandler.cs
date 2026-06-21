@@ -9,5 +9,5 @@ public sealed class OrderCompletedHandler(IMetricsRepository metrics, ILogger<Or
     : BaseEventHandler<OrderCompletedEvent>(metrics, logger)
 {
     protected override Task ProcessAsync(OrderCompletedEvent @event, CancellationToken cancellationToken) =>
-        metrics.IncrementOrderCompletedAsync(@event.ProductIds, cancellationToken);
+        Metrics.IncrementOrderCompletedAsync(@event.ProductIds, cancellationToken);
 }

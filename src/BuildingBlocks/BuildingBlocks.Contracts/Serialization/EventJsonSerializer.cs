@@ -3,7 +3,7 @@ using BuildingBlocks.Contracts.Events;
 namespace BuildingBlocks.Contracts.Serialization;
 
 /// <summary>
-/// Facade sobre <see cref="IntegrationEventRegistry"/> para compatibilidade.
+/// Facade over <see cref="IntegrationEventRegistry"/> for backward compatibility.
 /// </summary>
 public static class EventJsonSerializer
 {

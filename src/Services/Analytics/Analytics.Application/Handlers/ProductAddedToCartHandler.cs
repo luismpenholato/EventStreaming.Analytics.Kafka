@@ -9,5 +9,5 @@ public sealed class ProductAddedToCartHandler(IMetricsRepository metrics, ILogge
     : BaseEventHandler<ProductAddedToCartEvent>(metrics, logger)
 {
     protected override Task ProcessAsync(ProductAddedToCartEvent @event, CancellationToken cancellationToken) =>
-        metrics.IncrementAddedToCartAsync(@event.ProductId, cancellationToken);
+        Metrics.IncrementAddedToCartAsync(@event.ProductId, cancellationToken);
 }

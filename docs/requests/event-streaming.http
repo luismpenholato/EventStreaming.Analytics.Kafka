@@ -1,6 +1,8 @@
-# EventStreaming.Analytics.Kafka — requisições de exemplo
-# Requer Docker Compose: docker compose up --build
-# Extensão: REST Client (VS Code / Rider)
+# EventStreaming.Analytics.Kafka — sample requests
+# Requires Docker Compose: docker compose up --build
+# Extension: REST Client (VS Code / Rider)
+#
+# Optional header: X-Correlation-Id (propagated to logs and Kafka headers)
 
 @trackingBase = http://localhost:5001
 @queryBase = http://localhost:5002
@@ -13,7 +15,7 @@ GET {{trackingBase}}/health
 GET {{queryBase}}/health
 
 ###############################################################################
-# Tracking API — 202 = evento no Outbox (Kafka é assíncrono via OutboxPublisher)
+# Tracking API — 202 = event stored in Outbox (Kafka publish is async)
 ###############################################################################
 
 ### Product Viewed
@@ -73,7 +75,7 @@ X-Correlation-Id: {{correlationId}}
 }
 
 ###############################################################################
-# Query API — aguarde alguns segundos após os POSTs acima
+# Query API — wait a few seconds after the POST requests above
 ###############################################################################
 
 ### Product analytics

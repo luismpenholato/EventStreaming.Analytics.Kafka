@@ -1,6 +1,7 @@
-@Analytics.QueryApi_HostAddress = http://localhost:5226
+# Sample requests live in docs/requests/event-streaming.http
+# Query API (Docker): http://localhost:5002
 
-GET {{Analytics.QueryApi_HostAddress}}/weatherforecast/
-Accept: application/json
+@queryBase = http://localhost:5002
 
-###
+### Health
+GET {{queryBase}}/health

@@ -1,10 +1,10 @@
-# EventStreaming.Analytics.Kafka — ambiente local
-# Uso: docker compose up --build
+# EventStreaming.Analytics.Kafka — local environment
+# Usage: docker compose up --build
 #
-# Serviços expostos:
+# Exposed services:
 #   Tracking API  → http://localhost:5001
 #   Query API     → http://localhost:5002
-#   PostgreSQL    → localhost:5432 (analytics / analytics)
+#   PostgreSQL    → localhost:5432 (analytics / analytics — demo only)
 #   Kafka         → localhost:9092
 
 services:

@@ -9,5 +9,5 @@ public sealed class ProductViewedHandler(IMetricsRepository metrics, ILogger<Pro
     : BaseEventHandler<ProductViewedEvent>(metrics, logger)
 {
     protected override Task ProcessAsync(ProductViewedEvent @event, CancellationToken cancellationToken) =>
-        metrics.IncrementProductViewAsync(@event.ProductId, cancellationToken);
+        Metrics.IncrementProductViewAsync(@event.ProductId, cancellationToken);
 }
