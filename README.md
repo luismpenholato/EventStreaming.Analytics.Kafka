@@ -1,10 +1,14 @@
 # EventStreaming.Analytics.Kafka
 
-Production-like event streaming analytics platform built with .NET 10, Apache Kafka, PostgreSQL, Outbox Pattern, transactional idempotency, light CQRS, Dapper, EF Core, Docker Compose, and structured observability.
+Turn e-commerce activity events into queryable metrics with durable HTTP ingestion, Kafka consumers and PostgreSQL read models.
+
+**Stack:** .NET 10 · Apache Kafka · PostgreSQL · EF Core / Dapper · Docker Compose · xUnit / Testcontainers.
+
+[Quick start](#running-with-docker-compose) · [Event flow](#event-flow) · [Try the API](#validating-the-flow) · [Tests](#build-and-tests) · [Trade-offs](#conscious-trade-offs)
 
 ## Purpose
 
-This repository is a **senior portfolio / demo project** that simulates a behavioral analytics platform for an e-commerce scenario. It demonstrates how to:
+This repository is a **portfolio / reference project** for behavioral analytics in an e-commerce scenario. It demonstrates how to:
 
 - Ingest HTTP events durably and asynchronously
 - Publish to Kafka through an Outbox Pattern
@@ -20,20 +24,20 @@ The system follows an event-driven pipeline:
 
 **HTTP ingestion → PostgreSQL outbox → Kafka → analytics consumer → PostgreSQL metrics → Dapper read API**
 
-Kafka acts as an immutable event log and streaming backbone. PostgreSQL stores the outbox, processed-event ledger, and materialized metrics.
+Kafka provides the event log and streaming backbone. PostgreSQL stores the outbox, processed-event ledger, and materialized metrics.
 
 See also: [docs/architecture.md](docs/architecture.md)
 
 ## Runtime components
 
-| Component | Docker port | Role |
-|-----------|-------------|------|
-| **Tracking API** | 5001 | Write-facing HTTP ingestion; validates and persists to `outbox_messages`; returns `202 Accepted` |
-| **OutboxPublisherWorker** | (hosted in Tracking API) | Background worker that publishes pending outbox rows to Kafka |
-| **Analytics Consumer** | — | Consumer group member; materializes metrics transactionally |
-| **Query API** | 5002 | Read-facing API backed by Dapper |
-| **PostgreSQL** | 5432 | Outbox, `processed_events`, and metrics tables |
-| **Kafka** | 9092 | Event streaming backbone |
+| Component                 | Docker port              | Role                                                                                             |
+| ------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------ |
+| **Tracking API**          | 5001                     | Write-facing HTTP ingestion; validates and persists to `outbox_messages`; returns `202 Accepted` |
+| **OutboxPublisherWorker** | (hosted in Tracking API) | Background worker that publishes pending outbox rows to Kafka                                    |
+| **Analytics Consumer**    | —                        | Consumer group member; materializes metrics transactionally                                      |
+| **Query API**             | 5002                     | Read-facing API backed by Dapper                                                                 |
+| **PostgreSQL**            | 5432                     | Outbox, `processed_events`, and metrics tables                                                   |
+| **Kafka**                 | 9092                     | Event streaming backbone                                                                         |
 
 ## Event flow
 
@@ -97,20 +101,20 @@ flowchart TD
 
 ## Production-like decisions
 
-| Decision | Implementation |
-|----------|------------------|
-| Durable ingestion | `outbox_messages` before Kafka publish |
-| Async publish | `OutboxPublisherWorker` + `IOutboxPublisher` |
-| `202 Accepted` semantics | Response after PostgreSQL commit, not after Kafka publish |
-| Transactional idempotency | `processed_events` + single DB transaction |
-| Failure handling | Retry policy + `analytics-dead-letter` dead-letter topic |
-| Light CQRS | Write path (Consumer / EF Core) vs read path (Query / Dapper) |
-| Fast reads | Query API using Dapper |
-| Observability | Serilog + `X-Correlation-Id` header |
-| Kafka abstraction | `IIntegrationEventPublisher` in Contracts |
-| Event routing | `IntegrationEventRegistry` |
-| Manual offset commit | Commit only after successful transaction |
-| Consumer groups | `analytics-consumer-group` |
+| Decision                  | Implementation                                                |
+| ------------------------- | ------------------------------------------------------------- |
+| Durable ingestion         | `outbox_messages` before Kafka publish                        |
+| Async publish             | `OutboxPublisherWorker` + `IOutboxPublisher`                  |
+| `202 Accepted` semantics  | Response after PostgreSQL commit, not after Kafka publish     |
+| Transactional idempotency | `processed_events` + single DB transaction                    |
+| Failure handling          | Retry policy + `analytics-dead-letter` dead-letter topic      |
+| Light CQRS                | Write path (Consumer / EF Core) vs read path (Query / Dapper) |
+| Fast reads                | Query API using Dapper                                        |
+| Observability             | Serilog + `X-Correlation-Id` header                           |
+| Kafka abstraction         | `IIntegrationEventPublisher` in Contracts                     |
+| Event routing             | `IntegrationEventRegistry`                                    |
+| Manual offset commit      | Commit only after successful transaction                      |
+| Consumer groups           | `analytics-consumer-group`                                    |
 
 Architecture Decision Records: [docs/decisions/](docs/decisions/)
 
@@ -120,15 +124,13 @@ Architecture Decision Records: [docs/decisions/](docs/decisions/)
 
 Publication happens asynchronously through `OutboxPublisherWorker`. If you query the Query API immediately after a POST, metrics may not exist yet — wait a few seconds for outbox → Kafka → consumer processing.
 
-## Kafka vs RabbitMQ
+## Why Kafka?
 
-| | Kafka | RabbitMQ |
-|---|-------|----------|
-| Model | Immutable log, replayable | Queue with removal after ack |
-| Consumers | Independent consumer groups | Competing consumers |
-| Use in this project | Streaming analytics backbone | Not used |
+This project uses partitioned topics, consumer groups and explicit offset commits to demonstrate streaming analytics. The focus is the event log and its consumers, rather than order-processing choreography.
 
-This project focuses on **streaming analytics**, replayable event flows, and consumer groups. RabbitMQ is a strong choice for task queues and RPC-style messaging, but it does not match the replay/log semantics this demo highlights.
+Replay must account for the application's idempotency ledger: resetting Kafka offsets alone does not rebuild metrics for events already recorded in `processed_events`. Plan a separate read-model rebuild strategy before using replay operationally.
+
+For a complementary choreography example, see [EventDriven.OrderProcessing.RabbitMQ](https://github.com/luismpenholato/EventDriven.OrderProcessing.RabbitMQ).
 
 ## Repository structure
 
@@ -163,24 +165,24 @@ Optional header on all requests: `X-Correlation-Id: <guid>`
 
 ### Tracking API — http://localhost:5001
 
-| Method | Route |
-|--------|-------|
-| POST | `/api/events/product-viewed` |
-| POST | `/api/events/product-added-to-cart` |
-| POST | `/api/events/checkout-started` |
-| POST | `/api/events/order-completed` |
-| POST | `/api/events/user-logged-in` |
-| GET | `/health` |
+| Method | Route                               |
+| ------ | ----------------------------------- |
+| POST   | `/api/events/product-viewed`        |
+| POST   | `/api/events/product-added-to-cart` |
+| POST   | `/api/events/checkout-started`      |
+| POST   | `/api/events/order-completed`       |
+| POST   | `/api/events/user-logged-in`        |
+| GET    | `/health`                           |
 
 ### Query API — http://localhost:5002
 
-| Method | Route |
-|--------|-------|
-| GET | `/api/analytics/products/{productId}` |
-| GET | `/api/analytics/summary` |
-| GET | `/api/analytics/events-by-type` |
-| GET | `/api/analytics/conversion-rate` |
-| GET | `/health` |
+| Method | Route                                 |
+| ------ | ------------------------------------- |
+| GET    | `/api/analytics/products/{productId}` |
+| GET    | `/api/analytics/summary`              |
+| GET    | `/api/analytics/events-by-type`       |
+| GET    | `/api/analytics/conversion-rate`      |
+| GET    | `/health`                             |
 
 ## Running with Docker Compose
 
@@ -192,17 +194,19 @@ Optional header on all requests: `X-Correlation-Id: <guid>`
 ### Start the stack
 
 ```bash
+git clone https://github.com/luismpenholato/EventStreaming.Analytics.Kafka.git
+cd EventStreaming.Analytics.Kafka
 docker compose up --build
 ```
 
-On first run, wait for `kafka-init` to create topics and for the APIs to become healthy.
+On first run, wait for `kafka-init` to create topics and for the APIs to become healthy. This command stays attached to the logs; open another terminal for the HTTP examples.
 
-| Service | URL / host |
-|---------|------------|
-| Tracking API | http://localhost:5001 |
-| Query API | http://localhost:5002 |
-| Kafka (host) | localhost:9092 |
-| PostgreSQL | localhost:5432 — database `analytics`, user/password `analytics` (local demo only) |
+| Service      | URL / host                                                                         |
+| ------------ | ---------------------------------------------------------------------------------- |
+| Tracking API | http://localhost:5001                                                              |
+| Query API    | http://localhost:5002                                                              |
+| Kafka (host) | localhost:9092                                                                     |
+| PostgreSQL   | localhost:5432 — database `analytics`, user/password `analytics` (local demo only) |
 
 The `kafka-init` service waits for Kafka readiness and creates:
 
@@ -216,8 +220,9 @@ PostgreSQL includes a health check. Application services wait for dependencies b
 
 ```bash
 docker compose down
-docker compose down -v   # also removes the PostgreSQL volume
 ```
+
+This preserves stored data. For a disposable local environment only, `docker compose down -v` also deletes Compose volumes, including PostgreSQL data. Back up anything you need before using it.
 
 ## Validating the flow
 
@@ -247,13 +252,13 @@ dotnet build
 dotnet test
 ```
 
-| Test project | Type | Docker required |
-|--------------|------|-----------------|
-| `tests/Tracking.UnitTests` | Unit | No |
-| `tests/Analytics.UnitTests` | Unit | No |
-| `tests/Tracking.IntegrationTests` | Integration (Testcontainers: PostgreSQL + WebApplicationFactory) | Yes |
-| `tests/Analytics.IntegrationTests` | Integration (Testcontainers) | Yes |
-| `tests/Query.IntegrationTests` | Integration (Testcontainers) | Yes |
+| Test project                       | Type                                                             | Docker required |
+| ---------------------------------- | ---------------------------------------------------------------- | --------------- |
+| `tests/Tracking.UnitTests`         | Unit                                                             | No              |
+| `tests/Analytics.UnitTests`        | Unit                                                             | No              |
+| `tests/Tracking.IntegrationTests`  | Integration (Testcontainers: PostgreSQL + WebApplicationFactory) | Yes             |
+| `tests/Analytics.IntegrationTests` | Integration (Testcontainers)                                     | Yes             |
+| `tests/Query.IntegrationTests`     | Integration (Testcontainers)                                     | Yes             |
 
 Integration tests spin up **PostgreSQL via Testcontainers**. They do **not** currently use a Kafka Testcontainer. Docker must be running for integration tests to pass.
 
@@ -271,25 +276,25 @@ dotnet test tests/Query.IntegrationTests
 
 Technologies **not used** in this portfolio:
 
-| Not used | Reason |
-|----------|--------|
-| **MassTransit** | Native `Confluent.Kafka` client to expose Kafka concepts directly |
-| **MediatR** | Explicit handlers and simple DI boundaries |
-| **Redis** | PostgreSQL is enough for the demo scope |
-| **Kubernetes** | Docker Compose keeps local execution simple |
-| **Debezium CDC** | Worker-based outbox is easier to understand in a portfolio project |
-| **Full CQRS framework** | Explicit handlers and simple boundaries are enough for this scope |
-| **RabbitMQ** | Kafka fits streaming analytics and replayable logs better |
+| Not used                | Reason                                                             |
+| ----------------------- | ------------------------------------------------------------------ |
+| **MassTransit**         | Native `Confluent.Kafka` client to expose Kafka concepts directly  |
+| **MediatR**             | Explicit handlers and simple DI boundaries                         |
+| **Redis**               | PostgreSQL is enough for the demo scope                            |
+| **Kubernetes**          | Docker Compose keeps local execution simple                        |
+| **Debezium CDC**        | Worker-based outbox is easier to understand in a portfolio project |
+| **Full CQRS framework** | Explicit handlers and simple boundaries are enough for this scope  |
+| **RabbitMQ**            | Kafka fits streaming analytics and replayable logs better          |
 
 Key costs:
 
-| Decision | Benefit | Cost |
-|----------|---------|------|
-| Outbox Pattern | Durable ingestion | Eventual consistency |
-| Dapper for Query API | Fast and explicit reads | Separate read model maintenance |
-| Event Registry | Single registration point per event type | Rebuild when adding new event types |
-| Single PostgreSQL database | Easier local setup | Shared operational boundary |
-| Manual Kafka commit | Safer processing | More responsibility in consumer code |
+| Decision                   | Benefit                                  | Cost                                 |
+| -------------------------- | ---------------------------------------- | ------------------------------------ |
+| Outbox Pattern             | Durable ingestion                        | Eventual consistency                 |
+| Dapper for Query API       | Fast and explicit reads                  | Separate read model maintenance      |
+| Event Registry             | Single registration point per event type | Rebuild when adding new event types  |
+| Single PostgreSQL database | Easier local setup                       | Shared operational boundary          |
+| Manual Kafka commit        | Safer processing                         | More responsibility in consumer code |
 
 ## Stack
 
@@ -297,15 +302,15 @@ Key costs:
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [docs/architecture.md](docs/architecture.md) | Architecture overview and diagrams |
-| [docs/streaming-flow.md](docs/streaming-flow.md) | Step-by-step event flow |
-| [docs/kafka-topics.md](docs/kafka-topics.md) | Topic layout and consumer group |
-| [docs/requests/event-streaming.http](docs/requests/event-streaming.http) | HTTP request samples |
-| [docs/decisions/](docs/decisions/) | Architecture Decision Records |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
-| [SECURITY.md](SECURITY.md) | Security policy (demo scope) |
+| Document                                                                 | Description                        |
+| ------------------------------------------------------------------------ | ---------------------------------- |
+| [docs/architecture.md](docs/architecture.md)                             | Architecture overview and diagrams |
+| [docs/streaming-flow.md](docs/streaming-flow.md)                         | Step-by-step event flow            |
+| [docs/kafka-topics.md](docs/kafka-topics.md)                             | Topic layout and consumer group    |
+| [docs/requests/event-streaming.http](docs/requests/event-streaming.http) | HTTP request samples               |
+| [docs/decisions/](docs/decisions/)                                       | Architecture Decision Records      |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                                       | How to contribute                  |
+| [SECURITY.md](SECURITY.md)                                               | Security policy (demo scope)       |
 
 ## License
 
