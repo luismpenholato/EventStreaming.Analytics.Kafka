@@ -13,7 +13,10 @@ builder.Services.AddOpenApi();
 builder.Services.AddQueryInfrastructure(builder.Configuration);
 
 builder.Services.AddHealthChecks()
-    .AddNpgSql(builder.Configuration.GetConnectionString("AnalyticsDb")!)
+    .AddNpgSql(
+        builder.Configuration.GetConnectionString("AnalyticsDb")!,
+        name: "postgres",
+        tags: ["ready", "db"])
     .AddKafkaHealthCheck(builder.Configuration);
 
 var app = builder.Build();
