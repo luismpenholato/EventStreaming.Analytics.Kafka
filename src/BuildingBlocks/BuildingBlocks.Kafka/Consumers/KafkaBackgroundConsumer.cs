@@ -191,7 +191,9 @@ public abstract class KafkaBackgroundConsumer : BackgroundService
     {
         for (var current = ex; current is not null; current = current.InnerException)
         {
-            if (current is TimeoutException or InvalidOperationException)
+            // InvalidOperationException is usually a programming/state error, not a retryable
+            // infrastructure fault — keep it out of the transient path so DLQ is reached sooner.
+            if (current is TimeoutException)
                 return true;
 
             var name = current.GetType().Name;
