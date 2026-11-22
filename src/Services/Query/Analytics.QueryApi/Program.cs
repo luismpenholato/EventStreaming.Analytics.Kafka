@@ -25,7 +25,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapControllers();
 app.MapHealthChecks("/health");
-app.MapHealthChecks("/health/ready", new() { Predicate = _ => true });
+app.MapHealthChecks("/health/ready", new() { Predicate = check => check.Tags.Contains("ready") || check.Tags.Contains("kafka") });
 
 app.Run();
 
