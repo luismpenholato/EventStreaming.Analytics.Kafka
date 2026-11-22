@@ -1,14 +1,17 @@
 # EventStreaming.Analytics.Kafka
 
+[![CI](https://github.com/luismpenholato/EventStreaming.Analytics.Kafka/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/luismpenholato/EventStreaming.Analytics.Kafka/actions/workflows/ci.yml)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-luismpenholato-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/luismpenholato)
+
 Turn e-commerce activity events into queryable metrics with durable HTTP ingestion, Kafka consumers and PostgreSQL read models.
 
 **Study / portfolio reference** — not a production analytics product.
 
 **Stack:** .NET 10 · Apache Kafka · PostgreSQL · EF Core / Dapper · Docker Compose · xUnit / Testcontainers.
 
-Related references: [Microservices.Ecommerce](https://github.com/luismpenholato/Microservices.Ecommerce) · [EventDriven.OrderProcessing.RabbitMQ](https://github.com/luismpenholato/EventDriven.OrderProcessing.RabbitMQ)
-
-[Quick start](#running-with-docker-compose) · [Event flow](#event-flow) · [Try the API](#validating-the-flow) · [Tests](#build-and-tests) · [Trade-offs](#conscious-trade-offs)
+[Quick start](#running-with-docker-compose) · [What you'll learn](#what-youll-learn) · [Portfolio series](#portfolio-series) · [Event flow](#event-flow) · [Try the API](#validating-the-flow) · [Tests](#build-and-tests)
 
 ## Purpose
 
@@ -21,6 +24,24 @@ This repository is a **portfolio / reference project** for behavioral analytics 
 - Separate write and read paths with light CQRS
 
 It is **not** a production-ready product. It intentionally keeps operational complexity low while exposing patterns commonly used in real distributed systems.
+
+## What you'll learn
+
+- Durable HTTP ingestion with `202 Accepted`
+- Outbox → Kafka publishing without losing events
+- Consumer-group processing with idempotent materialization
+- CQRS-style read models queried with Dapper
+- Local Docker Compose for Kafka + PostgreSQL
+
+## Portfolio series
+
+| Repository | Focus |
+| ---------- | ----- |
+| [Microservices.Ecommerce](https://github.com/luismpenholato/Microservices.Ecommerce) | Microservices e-commerce + gateway + observability |
+| [EventDriven.OrderProcessing.RabbitMQ](https://github.com/luismpenholato/EventDriven.OrderProcessing.RabbitMQ) | Order flow with RabbitMQ / MassTransit workers |
+| **This repo** | Kafka analytics pipeline + CQRS read models |
+| [orderflow-operations](https://github.com/luismpenholato/orderflow-operations) | Node/React modular monolith (inventory + ERP outbox) |
+| [clean-stack](https://github.com/luismpenholato/clean-stack) | Full-stack starter (.NET 10 + Angular / React) |
 
 ## Architecture overview
 
@@ -315,7 +336,11 @@ Key costs:
 | [docs/decisions/](docs/decisions/)                                       | Architecture Decision Records      |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                                       | How to contribute                  |
 | [SECURITY.md](SECURITY.md)                                               | Security policy (demo scope)       |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)                                 | Community standards                |
+| [CHANGELOG.md](CHANGELOG.md)                                             | Notable project changes            |
 
 ## License
 
 MIT — educational / portfolio project. See [LICENSE](LICENSE).
+
+Optional support for open-source maintenance: [GitHub Sponsors](https://github.com/sponsors/luismpenholato).
