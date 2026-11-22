@@ -17,7 +17,10 @@ builder.Services
     .AddTrackingInfrastructure(builder.Configuration);
 
 builder.Services.AddHealthChecks()
-    .AddNpgSql(builder.Configuration.GetConnectionString("TrackingDb")!)
+    .AddNpgSql(
+        builder.Configuration.GetConnectionString("TrackingDb")!,
+        name: "postgres",
+        tags: ["ready", "db"])
     .AddKafkaHealthCheck(builder.Configuration);
 
 var app = builder.Build();
