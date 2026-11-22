@@ -100,7 +100,7 @@ public abstract class KafkaBackgroundConsumer : BackgroundService
                     eventType, result.Topic, result.Partition, result.Offset);
                 return true;
             }
-            catch (Exception ex) when (IsTransient(ex) && attempt < _options.MaxRetryAttempts)
+            catch (Exception ex) when (KafkaTransientExceptionClassifier.IsTransient(ex) && attempt < _options.MaxRetryAttempts)
             {
                 var delay = _options.RetryBackoffMs * attempt;
                 _logger.LogWarning(ex,
@@ -187,23 +187,6 @@ public abstract class KafkaBackgroundConsumer : BackgroundService
         return "Unknown";
     }
 
-    private static bool IsTransient(Exception ex)
-    {
-        for (var current = ex; current is not null; current = current.InnerException)
-        {
-            // InvalidOperationException is usually a programming/state error, not a retryable
-            // infrastructure fault — keep it out of the transient path so DLQ is reached sooner.
-            if (current is TimeoutException)
-                return true;
-
-            var name = current.GetType().Name;
-            if (name.Contains("DbUpdate", StringComparison.Ordinal)
-                || name.Contains("Npgsql", StringComparison.Ordinal))
-                return true;
-        }
-
-        return false;
-    }
 }
 
 internal sealed record DeadLetterMessage
