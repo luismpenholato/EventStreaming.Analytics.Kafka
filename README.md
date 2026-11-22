@@ -2,7 +2,11 @@
 
 Turn e-commerce activity events into queryable metrics with durable HTTP ingestion, Kafka consumers and PostgreSQL read models.
 
+**Study / portfolio reference** — not a production analytics product.
+
 **Stack:** .NET 10 · Apache Kafka · PostgreSQL · EF Core / Dapper · Docker Compose · xUnit / Testcontainers.
+
+Related references: [Microservices.Ecommerce](https://github.com/luismpenholato/Microservices.Ecommerce) · [EventDriven.OrderProcessing.RabbitMQ](https://github.com/luismpenholato/EventDriven.OrderProcessing.RabbitMQ)
 
 [Quick start](#running-with-docker-compose) · [Event flow](#event-flow) · [Try the API](#validating-the-flow) · [Tests](#build-and-tests) · [Trade-offs](#conscious-trade-offs)
 
