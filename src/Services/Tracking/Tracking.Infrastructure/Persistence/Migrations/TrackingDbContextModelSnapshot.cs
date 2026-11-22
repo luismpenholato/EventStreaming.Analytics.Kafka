@@ -44,6 +44,9 @@ namespace Tracking.Infrastructure.Persistence.Migrations
                     b.Property<string>("LastError")
                         .HasColumnType("text");
 
+                    b.Property<DateTimeOffset?>("LockedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Payload")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -62,6 +65,8 @@ namespace Tracking.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("EventId")
                         .IsUnique();
+
+                    b.HasIndex("LockedAt");
 
                     b.HasIndex("ProcessedAt", "CreatedAt");
 

@@ -10,6 +10,7 @@ public sealed class OutboxMessage
     public Guid CorrelationId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? ProcessedAt { get; set; }
+    public DateTimeOffset? LockedAt { get; set; }
     public int RetryCount { get; set; }
     public string? LastError { get; set; }
 }
