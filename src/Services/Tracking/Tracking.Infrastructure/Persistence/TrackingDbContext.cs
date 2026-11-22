@@ -14,6 +14,7 @@ public sealed class TrackingDbContext(DbContextOptions<TrackingDbContext> option
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.EventId).IsUnique();
             e.HasIndex(x => new { x.ProcessedAt, x.CreatedAt });
+            e.HasIndex(x => x.LockedAt);
             e.Property(x => x.Payload).HasColumnType("jsonb");
         });
     }

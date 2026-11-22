@@ -18,18 +18,17 @@ public sealed class OutboxPublisher(
     ILogger<OutboxPublisher> logger) : IOutboxPublisher
 {
     private const int BatchSize = 20;
+    private static readonly TimeSpan LockStaleAfter = TimeSpan.FromMinutes(5);
 
     public async Task<int> PublishPendingBatchAsync(CancellationToken cancellationToken = default)
     {
         var maxRetries = kafkaOptions.Value.MaxRetryAttempts;
+        var claimed = await ClaimPendingBatchAsync(maxRetries, cancellationToken);
+        if (claimed.Count == 0)
+            return 0;
 
-        var pending = await db.OutboxMessages
-            .Where(m => m.ProcessedAt == null && m.RetryCount < maxRetries)
-            .OrderBy(m => m.CreatedAt)
-            .Take(BatchSize)
-            .ToListAsync(cancellationToken);
-
-        foreach (var message in pending)
+        var published = 0;
+        foreach (var message in claimed)
         {
             using (LogContext.PushProperty("CorrelationId", message.CorrelationId))
             using (LogContext.PushProperty("EventId", message.EventId))
@@ -42,12 +41,15 @@ public sealed class OutboxPublisher(
                     await PublishAsync(publisher, message.Topic, @event, cancellationToken);
 
                     message.ProcessedAt = DateTimeOffset.UtcNow;
+                    message.LockedAt = null;
                     message.LastError = null;
+                    published++;
                     logger.LogInformation("Outbox message {OutboxId} published to {Topic}", message.Id, message.Topic);
                 }
                 catch (Exception ex)
                 {
                     message.RetryCount++;
+                    message.LockedAt = null;
                     message.LastError = ex.Message;
                     logger.LogWarning(ex,
                         "Outbox publish failed for {OutboxId}. Retry {RetryCount}/{MaxRetries}",
@@ -56,10 +58,40 @@ public sealed class OutboxPublisher(
             }
         }
 
-        if (pending.Count > 0)
-            await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        return published;
+    }
 
-        return pending.Count(m => m.ProcessedAt is not null);
+    private async Task<List<OutboxMessage>> ClaimPendingBatchAsync(
+        int maxRetries,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var staleBefore = now - LockStaleAfter;
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+        // Concurrent workers must not claim the same row: lock with SKIP LOCKED and stamp LockedAt.
+        var claimed = await db.OutboxMessages
+            .FromSql($"""
+                SELECT *
+                FROM outbox_messages
+                WHERE "ProcessedAt" IS NULL
+                  AND "RetryCount" < {maxRetries}
+                  AND ("LockedAt" IS NULL OR "LockedAt" < {staleBefore})
+                ORDER BY "CreatedAt"
+                LIMIT {BatchSize}
+                FOR UPDATE SKIP LOCKED
+                """)
+            .AsTracking()
+            .ToListAsync(cancellationToken);
+
+        foreach (var message in claimed)
+            message.LockedAt = now;
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return claimed;
     }
 
     private static Task PublishAsync(
